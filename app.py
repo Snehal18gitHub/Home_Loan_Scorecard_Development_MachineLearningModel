@@ -1,10 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import joblib
-from pathlib import Path
-
-from prediction import Prediction
+import requests
 
 
 # ============================================================
@@ -17,6 +14,13 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+
+# ============================================================
+# FLASK API CONFIGURATION
+# ============================================================
+
+API_URL = "http://127.0.0.1:5000/predict"
 
 
 # ============================================================
@@ -77,51 +81,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-
-# ============================================================
-# PATHS
-# ============================================================
-
-BASE_DIR = Path(__file__).resolve().parent
-
-MODEL_PATH = BASE_DIR / "models" / "best_model.pkl"
-FEATURE_PATH = BASE_DIR / "models" / "feature_names.pkl"
-
-
-# ============================================================
-# LOAD MODEL
-# ============================================================
-
-@st.cache_resource
-def load_model():
-
-    model = joblib.load(MODEL_PATH)
-
-    with open(FEATURE_PATH, "rb") as file:
-        feature_names = joblib.load(file)
-
-    return model, feature_names
-
-
-# ============================================================
-# INITIALIZE MODEL
-# ============================================================
-
-try:
-
-    model, feature_names = load_model()
-
-    prediction_model = Prediction(
-        model=model,
-        feature_names=feature_names
-    )
-
-except Exception as e:
-
-    st.error("Unable to load the saved model.")
-    st.code(str(e))
-    st.stop()
 
 
 # ============================================================
@@ -259,7 +218,6 @@ with st.container(border=True):
             step=10000.0,
             placeholder="Enter annual income"
         )
-
 
     annuity = st.number_input(
         "Loan Annuity / Monthly EMI",
@@ -446,7 +404,6 @@ with st.container(border=True):
             placeholder="Enter value"
         )
 
-
     col1, col2 = st.columns(2)
 
     with col1:
@@ -459,10 +416,6 @@ with st.container(border=True):
                 "Other"
             ]
         )
-
-    with col2:
-
-        owns_vehicle_placeholder = None
 
 
 # ============================================================
@@ -519,39 +472,44 @@ with st.container(border=True):
     col1, col2, col3 = st.columns(3)
 
     with col1:
+
         document_4 = st.selectbox(
             "Document 4",
             document_options
         )
 
     with col2:
+
         document_13 = st.selectbox(
             "Document 13",
             document_options
         )
 
     with col3:
+
         document_14 = st.selectbox(
             "Document 14",
             document_options
         )
 
-
     col1, col2, col3 = st.columns(3)
 
     with col1:
+
         document_16 = st.selectbox(
             "Document 16",
             document_options
         )
 
     with col2:
+
         document_17 = st.selectbox(
             "Document 17",
             document_options
         )
 
     with col3:
+
         document_18 = st.selectbox(
             "Document 18",
             document_options
@@ -595,11 +553,12 @@ predict_button = st.button(
 
 if predict_button:
 
-    # --------------------------------------------------------
+    # ========================================================
     # REQUIRED INPUT VALIDATION
-    # --------------------------------------------------------
+    # ========================================================
 
     required_values = {
+
         "Gender": gender,
         "Age": age,
         "Employment Information": employment_available,
@@ -630,21 +589,31 @@ if predict_button:
     }
 
 
+    # --------------------------------------------------------
     # Employment years required only if available
+    # --------------------------------------------------------
 
     if employment_available == "Yes":
+
         required_values[
             "Employment Experience"
         ] = employment_years
 
 
+    # --------------------------------------------------------
     # External score 1 required only if available
+    # --------------------------------------------------------
 
     if ext_source_1_available == "Yes":
+
         required_values[
             "External Credit Score 1"
         ] = ext_source_1
 
+
+    # --------------------------------------------------------
+    # Find missing fields
+    # --------------------------------------------------------
 
     missing_fields = []
 
@@ -677,70 +646,84 @@ if predict_button:
         st.stop()
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # BASIC ENCODING
-    # --------------------------------------------------------
+    # ========================================================
 
-    gender_value = 0 if gender == "Female" else 1
+    gender_value = (
+        0 if gender == "Female" else 1
+    )
 
     emp_phone_value = (
         1 if flag_emp_phone == "Yes" else 0
     )
 
     employment_unavailable = (
-        0 if employment_available == "Yes" else 1
+        0 if employment_available == "Yes"
+        else 1
     )
 
     vehicle_value = (
-        1 if owns_vehicle == "Yes" else 0
+        1 if owns_vehicle == "Yes"
+        else 0
     )
 
 
     document_4_value = (
-        1 if document_4 == "Yes" else 0
+        1 if document_4 == "Yes"
+        else 0
     )
 
     document_13_value = (
-        1 if document_13 == "Yes" else 0
+        1 if document_13 == "Yes"
+        else 0
     )
 
     document_14_value = (
-        1 if document_14 == "Yes" else 0
+        1 if document_14 == "Yes"
+        else 0
     )
 
     document_16_value = (
-        1 if document_16 == "Yes" else 0
+        1 if document_16 == "Yes"
+        else 0
     )
 
     document_17_value = (
-        1 if document_17 == "Yes" else 0
+        1 if document_17 == "Yes"
+        else 0
     )
 
     document_18_value = (
-        1 if document_18 == "Yes" else 0
+        1 if document_18 == "Yes"
+        else 0
     )
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # INCOME CATEGORY
-    # --------------------------------------------------------
+    # ========================================================
 
     if annual_income <= 112500:
+
         income_category = 0
 
     elif annual_income <= 147150:
+
         income_category = 1
 
     elif annual_income <= 202500:
+
         income_category = 2
 
     else:
+
         income_category = 3
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # FINANCIAL RATIOS
-    # --------------------------------------------------------
+    # ========================================================
 
     monthly_income = annual_income / 12
 
@@ -757,9 +740,9 @@ if predict_button:
     )
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # EXTERNAL CREDIT FEATURES
-    # --------------------------------------------------------
+    # ========================================================
 
     external_scores = [
         ext_source_1,
@@ -780,14 +763,15 @@ if predict_button:
     )
 
     ext_source_1_missing = (
-        0 if ext_source_1_available == "Yes"
+        0
+        if ext_source_1_available == "Yes"
         else 1
     )
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # DOCUMENT COMPLETENESS
-    # --------------------------------------------------------
+    # ========================================================
 
     document_completeness_score = (
         document_4_value
@@ -799,9 +783,9 @@ if predict_button:
     )
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # INCOME TYPE ENCODING
-    # --------------------------------------------------------
+    # ========================================================
 
     income_commercial = (
         1
@@ -828,9 +812,9 @@ if predict_button:
     )
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # EDUCATION ENCODING
-    # --------------------------------------------------------
+    # ========================================================
 
     education_higher = (
         1
@@ -852,15 +836,14 @@ if predict_button:
 
     education_secondary = (
         1
-        if education
-        == "Secondary / secondary special"
+        if education == "Secondary / secondary special"
         else 0
     )
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # FAMILY STATUS ENCODING
-    # --------------------------------------------------------
+    # ========================================================
 
     family_married = (
         1
@@ -869,248 +852,477 @@ if predict_button:
     )
 
 
-    # --------------------------------------------------------
-    # CREATE FINAL 40 FEATURE MODEL INPUT
-    # --------------------------------------------------------
+    # ========================================================
+    # CREATE FINAL 40 FEATURES
+    # ========================================================
 
     new_applicant = pd.DataFrame([{
 
         "CODE_GENDER": gender_value,
+
         "AMT_CREDIT": loan_amount,
+
         "AMT_GOODS_PRICE": goods_price,
+
         "DAYS_ID_PUBLISH": days_id_publish,
+
         "FLAG_EMP_PHONE": emp_phone_value,
+
         "REGION_RATING_CLIENT": region_rating,
-        "REGION_RATING_CLIENT_W_CITY": region_rating_city,
+
+        "REGION_RATING_CLIENT_W_CITY":
+            region_rating_city,
+
         "EXT_SOURCE_2": ext_source_2,
+
         "EXT_SOURCE_3": ext_source_3,
+
         "APARTMENTS_AVG": apartments_avg,
-        "OBS_30_CNT_SOCIAL_CIRCLE": social_30,
-        "OBS_60_CNT_SOCIAL_CIRCLE": social_60,
-        "FLAG_DOCUMENT_4": document_4_value,
-        "FLAG_DOCUMENT_13": document_13_value,
-        "FLAG_DOCUMENT_14": document_14_value,
-        "FLAG_DOCUMENT_16": document_16_value,
-        "FLAG_DOCUMENT_17": document_17_value,
-        "FLAG_DOCUMENT_18": document_18_value,
-        "EXT_SOURCE_1_MISSING": ext_source_1_missing,
-        "AGE_YEARS": age,
-        "EMPLOYMENT_DATA_UNAVAILABLE": employment_unavailable,
-        "EMPLOYMENT_YEARS": employment_years,
-        "INCOME_CATEGORY": income_category,
-        "EMI_INCOME_RATIO": emi_income_ratio,
-        "LTV_RATIO": ltv_ratio,
-        "OWNS_VEHICLE": vehicle_value,
-        "AVG_EXTERNAL_SCORE": avg_external_score,
-        "MAX_EXTERNAL_SCORE": max_external_score,
-        "MIN_EXTERNAL_SCORE": min_external_score,
-        "PROPERTY_QUALITY_SCORE": apartments_avg,
-        "DOCUMENT_COMPLETENESS_SCORE": document_completeness_score,
-        "NAME_INCOME_TYPE_Commercial associate": income_commercial,
-        "NAME_INCOME_TYPE_Pensioner": income_pensioner,
-        "NAME_INCOME_TYPE_State servant": income_state_servant,
-        "NAME_INCOME_TYPE_Working": income_working,
-        "NAME_EDUCATION_TYPE_Higher education": education_higher,
-        "NAME_EDUCATION_TYPE_Incomplete higher": education_incomplete,
-        "NAME_EDUCATION_TYPE_Lower secondary": education_lower_secondary,
-        "NAME_EDUCATION_TYPE_Secondary / secondary special": education_secondary,
-        "NAME_FAMILY_STATUS_Married": family_married
+
+        "OBS_30_CNT_SOCIAL_CIRCLE":
+            social_30,
+
+        "OBS_60_CNT_SOCIAL_CIRCLE":
+            social_60,
+
+        "FLAG_DOCUMENT_4":
+            document_4_value,
+
+        "FLAG_DOCUMENT_13":
+            document_13_value,
+
+        "FLAG_DOCUMENT_14":
+            document_14_value,
+
+        "FLAG_DOCUMENT_16":
+            document_16_value,
+
+        "FLAG_DOCUMENT_17":
+            document_17_value,
+
+        "FLAG_DOCUMENT_18":
+            document_18_value,
+
+        "EXT_SOURCE_1_MISSING":
+            ext_source_1_missing,
+
+        "AGE_YEARS":
+            age,
+
+        "EMPLOYMENT_DATA_UNAVAILABLE":
+            employment_unavailable,
+
+        "EMPLOYMENT_YEARS":
+            employment_years,
+
+        "INCOME_CATEGORY":
+            income_category,
+
+        "EMI_INCOME_RATIO":
+            emi_income_ratio,
+
+        "LTV_RATIO":
+            ltv_ratio,
+
+        "OWNS_VEHICLE":
+            vehicle_value,
+
+        "AVG_EXTERNAL_SCORE":
+            avg_external_score,
+
+        "MAX_EXTERNAL_SCORE":
+            max_external_score,
+
+        "MIN_EXTERNAL_SCORE":
+            min_external_score,
+
+        "PROPERTY_QUALITY_SCORE":
+            apartments_avg,
+
+        "DOCUMENT_COMPLETENESS_SCORE":
+            document_completeness_score,
+
+        "NAME_INCOME_TYPE_Commercial associate":
+            income_commercial,
+
+        "NAME_INCOME_TYPE_Pensioner":
+            income_pensioner,
+
+        "NAME_INCOME_TYPE_State servant":
+            income_state_servant,
+
+        "NAME_INCOME_TYPE_Working":
+            income_working,
+
+        "NAME_EDUCATION_TYPE_Higher education":
+            education_higher,
+
+        "NAME_EDUCATION_TYPE_Incomplete higher":
+            education_incomplete,
+
+        "NAME_EDUCATION_TYPE_Lower secondary":
+            education_lower_secondary,
+
+        "NAME_EDUCATION_TYPE_Secondary / secondary special":
+            education_secondary,
+
+        "NAME_FAMILY_STATUS_Married":
+            family_married
 
     }])
 
 
-    # --------------------------------------------------------
-    # VALIDATE MODEL INPUT
-    # --------------------------------------------------------
+    # ========================================================
+    # SEND DATA TO FLASK API
+    # ========================================================
 
     try:
 
-        new_applicant = (
-            prediction_model.validate_input(
-                new_applicant
+        # ----------------------------------------------------
+        # Convert DataFrame to dictionary
+        # ----------------------------------------------------
+
+        payload = new_applicant.iloc[0].to_dict()
+
+
+        # ----------------------------------------------------
+        # Convert NumPy values to Python values
+        # ----------------------------------------------------
+
+        payload = {
+
+            key: (
+                value.item()
+                if isinstance(value, np.generic)
+                else value
             )
-        )
 
-    except Exception as e:
-
-        st.error("Input preparation failed.")
-        st.exception(e)
-        st.stop()
+            for key, value in payload.items()
+        }
 
 
-    # --------------------------------------------------------
-    # MAKE PREDICTION
-    # --------------------------------------------------------
+        # ----------------------------------------------------
+        # Call Flask API
+        # ----------------------------------------------------
 
-    try:
+        with st.spinner(
+            "Connecting to Flask API and generating prediction..."
+        ):
 
-        result = prediction_model.predict(
-            new_applicant
-        )
-
-        probability_percent = result[
-            "Default_Probability_Percent"
-        ].iloc[0]
-
-        predicted_class = result[
-            "Predicted_Class"
-        ].iloc[0]
-
-        risk_decision = result[
-            "Risk_Decision"
-        ].iloc[0]
+            response = requests.post(
+                API_URL,
+                json=payload,
+                timeout=30
+            )
 
 
         # ====================================================
-        # DETERMINE UI RISK LEVEL
+        # SUCCESS RESPONSE
         # ====================================================
 
-        if probability_percent < 30:
+        if response.status_code == 200:
 
-            risk_label = "🟢 LOW RISK"
-            risk_class = "risk-low"
-            risk_message = (
-                "The applicant has a relatively low "
-                "predicted probability of default."
+            result = response.json()
+
+            prediction_id = result.get(
+                "prediction_id"
             )
 
-        elif probability_percent < 60:
-
-            risk_label = "🟠 MODERATE RISK"
-            risk_class = "risk-moderate"
-            risk_message = (
-                "The applicant shows a moderate "
-                "predicted probability of default."
+            probability_percent = float(
+                result["default_probability_percent"]
             )
+
+            predicted_class = int(
+                result["predicted_class"]
+            )
+
+            risk_decision = str(
+                result["risk_decision"]
+            )
+
+            risk_level = str(
+                result["risk_level"]
+            )
+
+
+            # =================================================
+            # DETERMINE UI RISK LEVEL
+            # =================================================
+
+            if risk_level == "Low Risk":
+
+                risk_label = "🟢 LOW RISK"
+
+                risk_class = "risk-low"
+
+                risk_message = (
+                    "The applicant has a relatively low "
+                    "predicted probability of default."
+                )
+
+            elif risk_level == "Medium Risk":
+
+                risk_label = "🟠 MODERATE RISK"
+
+                risk_class = "risk-moderate"
+
+                risk_message = (
+                    "The applicant shows a moderate "
+                    "predicted probability of default."
+                )
+
+            else:
+
+                risk_label = "🔴 HIGH RISK"
+
+                risk_class = "risk-high"
+
+                risk_message = (
+                    "The applicant has a high predicted "
+                    "probability of default."
+                )
+
+
+            # =================================================
+            # DISPLAY SUCCESS MESSAGE
+            # =================================================
+
+            st.success(
+                "✅ Prediction generated and stored successfully!"
+            )
+
+
+            # =================================================
+            # LOAN RISK ASSESSMENT
+            # =================================================
+
+            st.divider()
+
+            st.header(
+                "📊 Loan Risk Assessment"
+            )
+
+
+            col1, col2, col3, col4 = st.columns(4)
+
+
+            with col1:
+
+                st.metric(
+                    "Prediction ID",
+                    str(prediction_id)
+                )
+
+
+            with col2:
+
+                st.metric(
+                    "Default Probability",
+                    f"{probability_percent:.2f}%"
+                )
+
+
+            with col3:
+
+                st.metric(
+                    "Predicted Class",
+                    str(predicted_class)
+                )
+
+
+            with col4:
+
+                st.metric(
+                    "Model Decision",
+                    risk_decision
+                )
+
+
+            # =================================================
+            # DEFAULT PROBABILITY BAR
+            # =================================================
+
+            st.subheader(
+                "Default Risk Probability"
+            )
+
+            probability_value = max(
+                0,
+                min(
+                    int(probability_percent),
+                    100
+                )
+            )
+
+            st.progress(
+                probability_value
+            )
+
+
+            # =================================================
+            # RISK CARD
+            # =================================================
+
+            st.markdown(
+                f"""
+                <div class="result-card {risk_class}">
+                    <h2>{risk_label}</h2>
+                    <p>{risk_message}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+
+            # =================================================
+            # PREDICTION DETAILS
+            # =================================================
+
+            with st.expander(
+                "📋 View Prediction Details"
+            ):
+
+                result_display = pd.DataFrame({
+
+                    "Metric": [
+
+                        "Prediction ID",
+
+                        "Default Probability",
+
+                        "Predicted Class",
+
+                        "Model Risk Decision",
+
+                        "Risk Level"
+
+                    ],
+
+                    "Result": [
+
+                        str(prediction_id),
+
+                        f"{probability_percent:.2f}%",
+
+                        str(predicted_class),
+
+                        risk_decision,
+
+                        risk_level
+
+                    ]
+
+                })
+
+                st.table(
+                    result_display
+                )
+
+
+            # =================================================
+            # MODEL INPUT
+            # =================================================
+
+            with st.expander(
+                "🔍 View Model Input (40 Features)"
+            ):
+
+                st.dataframe(
+                    new_applicant.T.rename(
+                        columns={0: "Value"}
+                    ),
+                    use_container_width=True
+                )
+
+
+        # ====================================================
+        # FLASK API ERROR
+        # ====================================================
 
         else:
 
-            risk_label = "🔴 HIGH RISK"
-            risk_class = "risk-high"
-            risk_message = (
-                "The applicant has a high predicted "
-                "probability of default."
+            try:
+
+                error_data = response.json()
+
+                error_message = error_data.get(
+                    "message",
+                    "Prediction failed"
+                )
+
+            except Exception:
+
+                error_message = response.text
+
+
+            st.error(
+                f"❌ Flask API Error: {error_message}"
             )
 
 
-        # ====================================================
-        # DISPLAY RESULT
-        # ====================================================
+            # ------------------------------------------------
+            # Show missing features if returned by API
+            # ------------------------------------------------
 
-        st.divider()
+            if isinstance(
+                error_data if "error_data" in locals()
+                else None,
+                dict
+            ):
 
-        st.header("📊 Loan Risk Assessment")
+                missing_features = error_data.get(
+                    "missing_features"
+                )
 
-        col1, col2, col3 = st.columns(3)
+                if missing_features:
 
+                    with st.expander(
+                        "View Missing API Features"
+                    ):
 
-        with col1:
+                        for feature in missing_features:
 
-            st.metric(
-                "Default Probability",
-                f"{probability_percent:.2f}%"
-            )
-
-
-        with col2:
-
-            st.metric(
-                "Predicted Class",
-                str(predicted_class)
-            )
-
-
-        with col3:
-
-            st.metric(
-                "Model Decision",
-                risk_decision
-            )
+                            st.write(
+                                f"• {feature}"
+                            )
 
 
-        # ====================================================
-        # DEFAULT PROBABILITY BAR
-        # ====================================================
+    # ========================================================
+    # FLASK CONNECTION ERROR
+    # ========================================================
 
-        st.subheader("Default Risk Probability")
+    except requests.exceptions.ConnectionError:
 
-        probability_value = max(
-            0,
-            min(
-                int(probability_percent),
-                100
-            )
+        st.error(
+            "❌ Unable to connect to Flask API."
         )
 
-        st.progress(
-            probability_value
-        )
-
-
-        # ====================================================
-        # RISK CARD
-        # ====================================================
-
-        st.markdown(
-            f"""
-            <div class="result-card {risk_class}">
-                <h2>{risk_label}</h2>
-                <p>{risk_message}</p>
-            </div>
-            """,
-            unsafe_allow_html=True
+        st.info(
+            "Please make sure flask_api.py is running "
+            "on http://127.0.0.1:5000"
         )
 
 
-        # ====================================================
-        # PREDICTION DETAILS
-        # ====================================================
+    # ========================================================
+    # REQUEST TIMEOUT
+    # ========================================================
 
-        with st.expander(
-            "📋 View Prediction Details"
-        ):
+    except requests.exceptions.Timeout:
 
-            result_display = pd.DataFrame({
-
-                "Metric": [
-                    "Default Probability",
-                    "Predicted Class",
-                    "Model Risk Decision"
-                ],
-
-                "Result": [
-                    f"{probability_percent:.2f}%",
-                    str(predicted_class),
-                    risk_decision
-                ]
-
-            })
-
-            st.table(
-                result_display
-            )
+        st.error(
+            "⏱️ Flask API request timed out."
+        )
 
 
-        # ====================================================
-        # MODEL INPUT
-        # ====================================================
-
-        with st.expander(
-            "🔍 View Model Input (40 Features)"
-        ):
-
-            st.dataframe(
-                new_applicant.T.rename(
-                    columns={0: "Value"}
-                ),
-                use_container_width=True
-            )
-
+    # ========================================================
+    # OTHER ERROR
+    # ========================================================
 
     except Exception as e:
 
         st.error(
-            "Prediction could not be completed."
+            "❌ Prediction request failed."
         )
 
         st.exception(e)
+
