@@ -143,14 +143,14 @@ The application accepts applicant details and returns the predicted **default pr
 Add your Streamlit screenshot here:
 
 ```text
-screenshots/
+Screen_shots/
 └── home_loan_scorecard.png
 ```
 
 Then use:
 
 ```markdown
-![Home Loan Scorecard](screenshots/home_loan_scorecard.png)
+![Home Loan Scorecard](Screen_shots/home_loan_scorecard.png)
 ```
 
 ---
