@@ -181,6 +181,7 @@ Home_Loan_Scorecard/
 ├── inference_preprocessor.py
 ├── prediction.py
 │
+├── flask_api.py      
 ├── check_model.py
 ├── requirements.txt
 │
@@ -188,6 +189,9 @@ Home_Loan_Scorecard/
 │   ├── best_model.pkl
 │   └── feature_names.pkl
 │
+├── Screen_shots/
+│   └── home_loan_scorecard.png
+|
 └── notebooks/
 ```
 
@@ -205,6 +209,7 @@ Home_Loan_Scorecard/
 * **Jupyter Notebook**
 * **VS Code**
 * **Git & GitHub**
+* **MySQL**
 
 ---
 
