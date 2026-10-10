@@ -1,11 +1,15 @@
+# ============================================================
+# HOME LOAN SCORECARD - FLASK API
+# ============================================================
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+
 import pandas as pd
+import numpy as np
 import joblib
 import mysql.connector
-
-from prediction import Prediction
-
+import os
 
 # ============================================================
 # FLASK APPLICATION
@@ -14,38 +18,36 @@ from prediction import Prediction
 app = Flask(__name__)
 CORS(app)
 
-
 # ============================================================
-# MODEL FILES
+# MODEL FILE PATHS
 # ============================================================
 
-MODEL_PATH = "models/best_model.pkl"
-FEATURE_PATH = "models/feature_names.pkl"
-
+MODEL_PATH = os.path.join("models", "best_model.pkl")
+FEATURE_PATH = os.path.join("models", "feature_names.pkl")
 
 # ============================================================
 # LOAD MODEL
 # ============================================================
 
 try:
+
     model = joblib.load(MODEL_PATH)
     feature_names = joblib.load(FEATURE_PATH)
 
-    predictor = Prediction(
-        model=model,
-        feature_names=feature_names
-    )
-
-    print("Model loaded successfully")
-    print("Model type:", type(model).__name__)
-    print("Number of features:", len(feature_names))
+    print("============================================================")
+    print("MODEL LOADED SUCCESSFULLY")
+    print("============================================================")
+    print("Model Type       :", type(model).__name__)
+    print("Number Features  :", len(feature_names))
+    print("============================================================")
 
 except Exception as e:
-    print("Error loading model:", e)
+
+    print("ERROR LOADING MODEL:")
+    print(e)
 
     model = None
-    feature_names = None
-    predictor = None
+    feature_names = []
 
 
 # ============================================================
@@ -55,64 +57,17 @@ except Exception as e:
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": "Shivanya@123",
-    "database": "home_loan_db"
+    "password": "YOUR_MYSQL_PASSWORD",
+    "database":  "home_loan_db"
 }
 
 
 # ============================================================
-# EXACT 40 MODEL FEATURES
-# ============================================================
-
-MODEL_FEATURES = [
-    "CODE_GENDER",
-    "AMT_CREDIT",
-    "AMT_GOODS_PRICE",
-    "DAYS_ID_PUBLISH",
-    "FLAG_EMP_PHONE",
-    "REGION_RATING_CLIENT",
-    "REGION_RATING_CLIENT_W_CITY",
-    "EXT_SOURCE_2",
-    "EXT_SOURCE_3",
-    "APARTMENTS_AVG",
-    "OBS_30_CNT_SOCIAL_CIRCLE",
-    "OBS_60_CNT_SOCIAL_CIRCLE",
-    "FLAG_DOCUMENT_4",
-    "FLAG_DOCUMENT_13",
-    "FLAG_DOCUMENT_14",
-    "FLAG_DOCUMENT_16",
-    "FLAG_DOCUMENT_17",
-    "FLAG_DOCUMENT_18",
-    "EXT_SOURCE_1_MISSING",
-    "AGE_YEARS",
-    "EMPLOYMENT_DATA_UNAVAILABLE",
-    "EMPLOYMENT_YEARS",
-    "INCOME_CATEGORY",
-    "EMI_INCOME_RATIO",
-    "LTV_RATIO",
-    "OWNS_VEHICLE",
-    "AVG_EXTERNAL_SCORE",
-    "MAX_EXTERNAL_SCORE",
-    "MIN_EXTERNAL_SCORE",
-    "PROPERTY_QUALITY_SCORE",
-    "DOCUMENT_COMPLETENESS_SCORE",
-    "NAME_INCOME_TYPE_Commercial associate",
-    "NAME_INCOME_TYPE_Pensioner",
-    "NAME_INCOME_TYPE_State servant",
-    "NAME_INCOME_TYPE_Working",
-    "NAME_EDUCATION_TYPE_Higher education",
-    "NAME_EDUCATION_TYPE_Incomplete higher",
-    "NAME_EDUCATION_TYPE_Lower secondary",
-    "NAME_EDUCATION_TYPE_Secondary / secondary special",
-    "NAME_FAMILY_STATUS_Married"
-]
-
-
-# ============================================================
-# DATABASE CONNECTION
+# MYSQL CONNECTION
 # ============================================================
 
 def get_db_connection():
+
     return mysql.connector.connect(
         host=DB_CONFIG["host"],
         user=DB_CONFIG["user"],
@@ -122,16 +77,382 @@ def get_db_connection():
 
 
 # ============================================================
-# HOME API
+# BINARY ENCODING
+# ============================================================
+
+def encode_binary_features(df):
+
+    binary_mapping = {
+
+        "NAME_CONTRACT_TYPE": {
+            "Cash loans": 0,
+            "Revolving loans": 1
+        },
+
+        "FLAG_OWN_CAR": {
+            "N": 0,
+            "Y": 1
+        },
+
+        "FLAG_OWN_REALTY": {
+            "N": 0,
+            "Y": 1
+        },
+
+        "OWNS_VEHICLE": {
+            "No": 0,
+            "Yes": 1
+        },
+
+        "OWNS_PROPERTY": {
+            "No": 0,
+            "Yes": 1
+        }
+    }
+
+    for col, mapping in binary_mapping.items():
+
+        if col in df.columns:
+
+            df[col] = df[col].map(mapping)
+
+    return df
+
+
+# ============================================================
+# GENDER ENCODING
+# ============================================================
+
+def encode_gender(df):
+
+    if "CODE_GENDER" in df.columns:
+
+        gender_mapping = {
+            "F": 0,
+            "M": 1,
+            "XNA": -1
+        }
+
+        df["CODE_GENDER"] = (
+            df["CODE_GENDER"]
+            .map(gender_mapping)
+        )
+
+    return df
+
+
+# ============================================================
+# ORDINAL ENCODING
+# ============================================================
+
+def encode_ordinal_features(df):
+
+    ordinal_mappings = {
+
+        "AGE_GROUP": {
+            "Young": 0,
+            "Adult": 1,
+            "Middle Age": 2,
+            "Senior": 3
+        },
+
+        "INCOME_CATEGORY": {
+            "Low Income": 0,
+            "Medium Income": 1,
+            "High Income": 2,
+            "Very High Income": 3
+        },
+
+        "FAMILY_SIZE_CATEGORY": {
+            "Small Family": 0,
+            "Medium Family": 1,
+            "Large Family": 2
+        },
+
+        "CHILDREN_CATEGORY": {
+            "No Children": 0,
+            "One Child": 1,
+            "Two or More Children": 2
+        },
+
+        "RESIDENTIAL_STABILITY": {
+            "Unstable": 0,
+            "Moderately Stable": 1,
+            "Stable": 2
+        }
+    }
+
+    for col, mapping in ordinal_mappings.items():
+
+        if col in df.columns:
+
+            df[col] = df[col].map(mapping)
+
+    return df
+
+
+# ============================================================
+# FREQUENCY ENCODING
+# ============================================================
+#
+# IMPORTANT:
+# The frequency values below MUST be the same values used
+# during model training.
+#
+# If your training pipeline used the original training data
+# to calculate frequency encoding, those mappings should
+# ideally be saved as artifacts.
+#
+# For now, this function expects saved mappings.
+# ============================================================
+
+FREQUENCY_MAP_PATH = os.path.join(
+    "models",
+    "frequency_maps.pkl"
+)
+
+
+def load_frequency_maps():
+
+    if os.path.exists(FREQUENCY_MAP_PATH):
+
+        return joblib.load(FREQUENCY_MAP_PATH)
+
+    return {}
+
+
+frequency_maps = load_frequency_maps()
+
+
+def encode_frequency_features(df):
+
+    frequency_cols = [
+        "OCCUPATION_TYPE",
+        "ORGANIZATION_TYPE"
+    ]
+
+    for col in frequency_cols:
+
+        if col in df.columns:
+
+            if col in frequency_maps:
+
+                df[col] = (
+                    df[col]
+                    .map(frequency_maps[col])
+                    .fillna(0)
+                )
+
+            else:
+
+                raise ValueError(
+                    f"Frequency mapping for {col} "
+                    "is not available."
+                )
+
+    return df
+
+
+# ============================================================
+# ONE-HOT ENCODING
+# ============================================================
+
+def encode_onehot_features(df):
+
+    onehot_cols = [
+
+        "NAME_TYPE_SUITE",
+        "NAME_INCOME_TYPE",
+        "NAME_EDUCATION_TYPE",
+        "NAME_FAMILY_STATUS",
+        "NAME_HOUSING_TYPE",
+        "WEEKDAY_APPR_PROCESS_START"
+    ]
+
+    existing_cols = [
+        col
+        for col in onehot_cols
+        if col in df.columns
+    ]
+
+    if existing_cols:
+
+        df = pd.get_dummies(
+            df,
+            columns=existing_cols,
+            drop_first=True,
+            dtype=int
+        )
+
+    return df
+
+
+# ============================================================
+# EMPLOYMENT STABILITY ENCODING
+# ============================================================
+
+def encode_employment_stability(df):
+
+    if "EMPLOYMENT_STABILITY" in df.columns:
+
+        df = pd.get_dummies(
+            df,
+            columns=["EMPLOYMENT_STABILITY"],
+            drop_first=True,
+            dtype=int
+        )
+
+    return df
+
+
+# ============================================================
+# ALIGN FEATURES WITH TRAINING FEATURES
+# ============================================================
+
+def align_features(df):
+
+    # --------------------------------------------------------
+    # Add missing model features
+    # --------------------------------------------------------
+
+    for feature in feature_names:
+
+        if feature not in df.columns:
+
+            df[feature] = 0
+
+
+    # --------------------------------------------------------
+    # Remove unwanted columns
+    # --------------------------------------------------------
+
+    df = df[feature_names]
+
+
+    # --------------------------------------------------------
+    # Convert everything to numeric
+    # --------------------------------------------------------
+
+    for col in df.columns:
+
+        df[col] = pd.to_numeric(
+            df[col],
+            errors="coerce"
+        )
+
+
+    # --------------------------------------------------------
+    # Handle remaining missing values
+    # --------------------------------------------------------
+
+    df = df.fillna(0)
+
+
+    return df
+
+
+# ============================================================
+# COMPLETE PREPROCESSING PIPELINE
+# ============================================================
+
+def preprocess_input(data):
+
+    df = pd.DataFrame([data])
+
+    missing_features = [
+        feature
+        for feature in feature_names
+        if feature not in df.columns
+    ]
+
+    if missing_features:
+        raise ValueError(
+            "Missing required model features: "
+            + ", ".join(missing_features)
+        )
+
+    df = df.loc[:, feature_names]
+    df = df.apply(
+        lambda column: pd.to_numeric(column, errors="coerce")
+    )
+
+    invalid_features = df.columns[df.isna().any()].tolist()
+
+    if invalid_features:
+        raise ValueError(
+            "Feature values must be numeric and non-null. "
+            "Invalid features: "
+            + ", ".join(invalid_features)
+        )
+
+    if df.shape != (1, len(feature_names)):
+        raise ValueError(
+            "Expected exactly 1 row and "
+            f"{len(feature_names)} model features; received "
+            f"{df.shape[0]} rows and {df.shape[1]} features."
+        )
+
+    return df
+
+
+# ============================================================
+# VALIDATE INPUT
+# ============================================================
+
+def validate_input(data):
+
+    if not isinstance(data, dict):
+
+        return False, "Input must be a JSON object."
+
+    if len(data) == 0:
+
+        return False, "Input data cannot be empty."
+
+    return True, None
+
+
+# ============================================================
+# HOME ROUTE
 # ============================================================
 
 @app.route("/", methods=["GET"])
 def home():
+
     return jsonify({
-        "status": "success",
-        "message": "Home Loan Scorecard API is running",
-        "model_loaded": model is not None,
-        "number_of_features": len(MODEL_FEATURES)
+
+        "application":
+            "Home Loan Application Scorecard",
+
+        "status":
+            "API is running successfully",
+
+        "model":
+            type(model).__name__ if model else None,
+
+        "features":
+            len(feature_names)
+
+    })
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
+@app.route("/health", methods=["GET"])
+def health():
+
+    return jsonify({
+
+        "status": "healthy",
+
+        "model_loaded":
+            model is not None,
+
+        "feature_count":
+            len(feature_names)
+
     })
 
 
@@ -142,238 +463,304 @@ def home():
 @app.route("/predict", methods=["POST"])
 def predict():
 
-    # --------------------------------------------------------
-    # Check model
-    # --------------------------------------------------------
-
-    if predictor is None:
-        return jsonify({
-            "status": "error",
-            "message": "Model is not loaded"
-        }), 500
-
-    # --------------------------------------------------------
-    # Read JSON request
-    # --------------------------------------------------------
-
-    data = request.get_json(silent=True)
-
-    if not isinstance(data, dict):
-        return jsonify({
-            "status": "error",
-            "message": "Request body must be a JSON object"
-        }), 400
-
-    # --------------------------------------------------------
-    # Check missing features
-    # --------------------------------------------------------
-
-    missing_features = []
-
-    for feature in MODEL_FEATURES:
-        if feature not in data:
-            missing_features.append(feature)
-
-    if missing_features:
-        return jsonify({
-            "status": "error",
-            "message": "Required features are missing",
-            "missing_features": missing_features
-        }), 400
-
-    # --------------------------------------------------------
-    # Create DataFrame and Generate Prediction
-    # --------------------------------------------------------
-
     try:
-        X_new = pd.DataFrame(
-            [data],
-            columns=MODEL_FEATURES
+
+        # ----------------------------------------------------
+        # Check model
+        # ----------------------------------------------------
+
+        if model is None:
+
+            return jsonify({
+
+                "success": False,
+
+                "error":
+                    "Model is not loaded."
+
+            }), 500
+
+
+        # ----------------------------------------------------
+        # Read JSON
+        # ----------------------------------------------------
+
+        data = request.get_json()
+
+        print("\n============================================================")
+        print("PREDICTION REQUEST RECEIVED")
+        print("============================================================")
+
+
+        # ----------------------------------------------------
+        # Validate JSON
+        # ----------------------------------------------------
+
+        is_valid, error_message = validate_input(data)
+
+        if not is_valid:
+
+            return jsonify({
+
+                "success": False,
+
+                "error": error_message
+
+            }), 400
+
+
+        # ----------------------------------------------------
+        # Preprocess
+        # ----------------------------------------------------
+
+        try:
+            X_new = preprocess_input(data)
+        except ValueError as input_error:
+            return jsonify({
+                "success": False,
+                "error": str(input_error)
+            }), 400
+
+
+        # ----------------------------------------------------
+        # Final safety check
+        # ----------------------------------------------------
+
+        if X_new.shape[1] != len(feature_names):
+
+            return jsonify({
+
+                "success": False,
+
+                "error":
+                    "Feature count mismatch.",
+
+                "expected_features":
+                    len(feature_names),
+
+                "received_features":
+                    X_new.shape[1]
+
+            }), 500
+
+
+        # ----------------------------------------------------
+        # Prediction
+        # ----------------------------------------------------
+
+        prediction = model.predict(X_new)[0]
+
+
+        # ----------------------------------------------------
+        # Probability
+        # ----------------------------------------------------
+
+        classes = list(model.classes_)
+        class_one_index = next(
+            (
+                index
+                for index, class_label in enumerate(classes)
+                if class_label == 1
+            ),
+            None
         )
 
-        result = predictor.predict(X_new)
-
-        # ----------------------------------------------------
-        # Extract results
-        # ----------------------------------------------------
+        if class_one_index is None:
+            raise ValueError(
+                "Model does not contain class 1; "
+                "cannot calculate default probability."
+            )
 
         probability = float(
-            result["Default_Probability"].iloc[0]
+            model.predict_proba(X_new)[0][class_one_index]
         )
 
-        probability_percent = float(
-            result["Default_Probability_Percent"].iloc[0]
-        )
-
-        predicted_class = int(
-            result["Predicted_Class"].iloc[0]
-        )
-
-        risk_decision = str(
-            result["Risk_Decision"].iloc[0]
-        )
 
         # ----------------------------------------------------
-        # Determine risk level
+        # Risk calculation
         # ----------------------------------------------------
 
-        if probability < 0.30:
+        risk_score = round(
+            probability * 100,
+            2
+        )
+
+        if risk_score < 30:
+
             risk_level = "Low Risk"
 
-        elif probability < 0.60:
+        elif risk_score < 60:
+
             risk_level = "Medium Risk"
 
         else:
+
             risk_level = "High Risk"
 
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": "Prediction failed",
-            "error": str(e)
-        }), 500
-
-    # ========================================================
-    # SAVE PREDICTION TO MYSQL
-    # ========================================================
-
-    connection = None
-    cursor = None
-    prediction_id = None
-
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor()
 
         # ----------------------------------------------------
-        # Columns to insert
+        # Application decision
         # ----------------------------------------------------
 
-        columns = (
-            MODEL_FEATURES
-            + [
+        if int(prediction) == 0:
+
+            decision = "Likely Approved"
+
+        else:
+
+            decision = "High Default Risk"
+
+
+        # ----------------------------------------------------
+        # Store prediction in MySQL
+        # ----------------------------------------------------
+
+        prediction_id = None
+
+        try:
+
+            connection = get_db_connection()
+
+            cursor = connection.cursor()
+
+            insert_columns = list(feature_names) + [
                 "prediction",
                 "risk_decision",
                 "risk_level",
                 "probability",
                 "probability_percent"
             ]
-        )
+            quoted_columns = ", ".join(
+                f"`{column.replace('`', '``')}`"
+                for column in insert_columns
+            )
+            placeholders = ", ".join(
+                ["%s"] * len(insert_columns)
+            )
 
-        # ----------------------------------------------------
-        # Create SQL column string
-        # ----------------------------------------------------
+            query = (
+                "INSERT INTO predictions "
+                f"({quoted_columns}) "
+                f"VALUES ({placeholders})"
+            )
 
-        column_names = ", ".join(
-            "`" + column + "`"
-            for column in columns
-        )
+            values = tuple(X_new.iloc[0].tolist()) + (
+                int(prediction),
+                decision,
+                risk_level,
+                probability,
+                risk_score
+            )
 
-        # ----------------------------------------------------
-        # Create placeholders
-        # ----------------------------------------------------
+            cursor.execute(
+                query,
+                values
+            )
 
-        placeholders = ", ".join(
-            ["%s"] * len(columns)
-        )
+            prediction_id = cursor.lastrowid
 
-        # ----------------------------------------------------
-        # INSERT query
-        # ----------------------------------------------------
+            connection.commit()
 
-        insert_query = (
-            "INSERT INTO predictions ("
-            + column_names
-            + ") VALUES ("
-            + placeholders
-            + ")"
-        )
-
-        # ----------------------------------------------------
-        # Prepare 40 input values
-        # ----------------------------------------------------
-
-        input_values = []
-
-        for feature in MODEL_FEATURES:
-            input_values.append(data[feature])
-
-        # ----------------------------------------------------
-        # Add prediction output values
-        # ----------------------------------------------------
-
-        output_values = [
-            predicted_class,
-            risk_decision,
-            risk_level,
-            probability,
-            probability_percent
-        ]
-
-        # ----------------------------------------------------
-        # Combine all values
-        # ----------------------------------------------------
-
-        values = tuple(
-            input_values + output_values
-        )
-
-        # ----------------------------------------------------
-        # Execute INSERT
-        # ----------------------------------------------------
-
-        cursor.execute(
-            insert_query,
-            values
-        )
-
-        connection.commit()
-
-        # ----------------------------------------------------
-        # Get generated prediction ID
-        # ----------------------------------------------------
-
-        prediction_id = cursor.lastrowid
-
-    except mysql.connector.Error as e:
-
-        if connection is not None:
-            connection.rollback()
-
-        return jsonify({
-            "status": "error",
-            "message": "Database insertion failed",
-            "database_error": str(e)
-        }), 500
-
-    finally:
-
-        if cursor is not None:
             cursor.close()
-
-        if connection is not None:
             connection.close()
 
-    # ========================================================
-    # RETURN RESPONSE
-    # ========================================================
+            database_status = "Saved successfully"
 
-    return jsonify({
-        "status": "success",
-        "prediction_id": prediction_id,
-        "predicted_class": predicted_class,
-        "risk_decision": risk_decision,
-        "risk_level": risk_level,
-        "default_probability": round(
-            probability,
-            4
-        ),
-        "default_probability_percent": round(
-            probability_percent,
-            2
-        ),
-        "message": "Prediction generated and stored successfully"
-    }), 200
+
+        except Exception as db_error:
+
+            error_code = getattr(db_error, "errno", None)
+            error_message = getattr(db_error, "msg", str(db_error))
+            sql_state = getattr(db_error, "sqlstate", None)
+
+            print("MYSQL DATABASE ERROR")
+            print("Error type:", type(db_error).__name__)
+            print("Error code:", error_code)
+            print("SQL state:", sql_state)
+            print("Error message:", error_message)
+            print("Exception:", repr(db_error))
+
+            if "query" in locals():
+                print("SQL statement:")
+                print(query)
+
+            database_status = (
+                "Prediction generated, "
+                "but database storage failed. "
+                f"MySQL error code: {error_code}; "
+                f"SQL state: {sql_state}; "
+                f"message: {error_message}"
+            )
+
+
+        # ----------------------------------------------------
+        # Final response
+        # ----------------------------------------------------
+
+        response = {
+
+            "success": True,
+
+            "prediction_id": prediction_id,
+
+            "predicted_class": int(prediction),
+
+            "default_probability":
+                round(
+                    probability,
+                    4
+                ),
+
+            "default_probability_percent":
+                risk_score,
+
+            "risk_score":
+                risk_score,
+
+            "risk_level":
+                risk_level,
+
+            "risk_category": 
+                risk_level,
+
+            "risk_decision":
+                decision,
+
+            "decision":
+                decision,
+
+            "database":
+                database_status
+
+        }
+
+
+        print("\n============================================================")
+        print("PREDICTION RESULT")
+        print("============================================================")
+
+        print(response)
+
+
+        return jsonify(response), 200
+
+
+    except Exception as e:
+
+        print("\n============================================================")
+        print("PREDICTION ERROR")
+        print("============================================================")
+
+        print(str(e))
+
+
+        return jsonify({
+
+            "success": False,
+
+            "error": str(e)
+
+        }), 500
 
 
 # ============================================================
@@ -383,124 +770,49 @@ def predict():
 @app.route("/predictions", methods=["GET"])
 def get_predictions():
 
-    connection = None
-    cursor = None
-
     try:
+
         connection = get_db_connection()
 
         cursor = connection.cursor(
             dictionary=True
         )
 
-        cursor.execute(
-            "SELECT * FROM predictions "
-            "ORDER BY prediction_date DESC"
-        )
+        cursor.execute("""
+            SELECT *
+            FROM loan_predictions
+            ORDER BY id DESC
+        """)
 
         records = cursor.fetchall()
 
-        # ----------------------------------------------------
-        # Convert datetime to JSON-compatible string
-        # ----------------------------------------------------
-
-        for record in records:
-
-            if record["prediction_date"] is not None:
-                record["prediction_date"] = (
-                    record["prediction_date"].isoformat()
-                )
+        cursor.close()
+        connection.close()
 
         return jsonify({
-            "status": "success",
+
+            "success": True,
+
             "count": len(records),
-            "predictions": records
+
+            "data": records
+
         }), 200
 
-    except mysql.connector.Error as e:
+
+    except Exception as e:
 
         return jsonify({
-            "status": "error",
-            "message": "Unable to retrieve predictions",
-            "database_error": str(e)
+
+            "success": False,
+
+            "error": str(e)
+
         }), 500
 
-    finally:
-
-        if cursor is not None:
-            cursor.close()
-
-        if connection is not None:
-            connection.close()
-
 
 # ============================================================
-# GET SINGLE PREDICTION
-# ============================================================
-
-@app.route(
-    "/predictions/<int:prediction_id>",
-    methods=["GET"]
-)
-def get_prediction(prediction_id):
-
-    connection = None
-    cursor = None
-
-    try:
-        connection = get_db_connection()
-
-        cursor = connection.cursor(
-            dictionary=True
-        )
-
-        cursor.execute(
-            "SELECT * FROM predictions "
-            "WHERE prediction_id = %s",
-            (prediction_id,)
-        )
-
-        record = cursor.fetchone()
-
-        if record is None:
-            return jsonify({
-                "status": "error",
-                "message": "Prediction not found"
-            }), 404
-
-        # ----------------------------------------------------
-        # Convert datetime to string
-        # ----------------------------------------------------
-
-        if record["prediction_date"] is not None:
-            record["prediction_date"] = (
-                record["prediction_date"].isoformat()
-            )
-
-        return jsonify({
-            "status": "success",
-            "prediction": record
-        }), 200
-
-    except mysql.connector.Error as e:
-
-        return jsonify({
-            "status": "error",
-            "message": "Unable to retrieve prediction",
-            "database_error": str(e)
-        }), 500
-
-    finally:
-
-        if cursor is not None:
-            cursor.close()
-
-        if connection is not None:
-            connection.close()
-
-
-# ============================================================
-# START FLASK SERVER
+# RUN FLASK APPLICATION
 # ============================================================
 
 if __name__ == "__main__":
@@ -510,4 +822,3 @@ if __name__ == "__main__":
         port=5000,
         debug=True
     )
-
