@@ -9,3 +9,6 @@ shap
 joblib
 openpyxl
 streamlit
+flask
+gunicorn
+requests
