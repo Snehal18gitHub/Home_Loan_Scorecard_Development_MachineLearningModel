@@ -1,6 +1,11 @@
-
 #!/bin/bash
+set -e
 
-gunicorn --bind 127.0.0.1:5000 --timeout 600 flask_api:app &
+echo "Starting Flask prediction API..."
+gunicorn --bind 0.0.0.0:5000 --timeout 600 --access-logfile - --error-logfile - flask_api:app &
 
-exec python -m streamlit run app.py --server.address 0.0.0.0 --server.port 8000 --server.headless true
+echo "Starting Streamlit frontend..."
+exec python -m streamlit run app.py 
+  --server.address 0.0.0.0 
+  --server.port 8000 
+  --server.headless true
