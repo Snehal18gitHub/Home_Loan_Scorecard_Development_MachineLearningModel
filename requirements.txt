@@ -11,8 +11,4 @@ openpyxl
 streamlit
 flask
 gunicorn
-<<<<<<< HEAD
 requests
-=======
-requests
->>>>>>> 926da86 (Fix Azure startup for Streamlit and Flask)
