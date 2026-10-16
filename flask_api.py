@@ -11,6 +11,11 @@ import joblib
 import mysql.connector
 import os
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+
 # ============================================================
 # FLASK APPLICATION
 # ============================================================
@@ -50,15 +55,16 @@ except Exception as e:
     feature_names = []
 
 
+
 # ============================================================
 # MYSQL CONFIGURATION
 # ============================================================
 
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "YOUR_MYSQL_PASSWORD",
-    "database":  "home_loan_db"
+    "host": os.getenv("MYSQL_HOST", "localhost"),
+    "user": os.getenv("MYSQL_USER"),
+    "password": os.getenv("MYSQL_PASSWORD"),
+    "database": os.getenv("MYSQL_DATABASE"),
 }
 
 
@@ -67,13 +73,33 @@ DB_CONFIG = {
 # ============================================================
 
 def get_db_connection():
+    return mysql.connector.connect(**DB_CONFIG)
 
-    return mysql.connector.connect(
-        host=DB_CONFIG["host"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-        database=DB_CONFIG["database"]
-    )
+
+# # ============================================================
+# # MYSQL CONFIGURATION
+# # ============================================================
+
+# DB_CONFIG = {
+#     "host": "localhost",
+#     "user": "root",
+#     "password": "Shivanya@123",
+#     "database":  "home_loan_db"
+# }
+
+
+# # ============================================================
+# # MYSQL CONNECTION
+# # ============================================================
+
+# def get_db_connection():
+
+#     return mysql.connector.connect(
+#         host=DB_CONFIG["host"],
+#         user=DB_CONFIG["user"],
+#         password=DB_CONFIG["password"],
+#         database=DB_CONFIG["database"]
+#     )
 
 
 # ============================================================

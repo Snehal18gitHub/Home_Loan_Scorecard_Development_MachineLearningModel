@@ -26,3 +26,8 @@ Thumbs.db
 # Logs / temporary files
 *.log
 *.tmp
+
+# Ignore environment files, but allow .env.example to be tracked
+.env
+.env.*
+!.env.example

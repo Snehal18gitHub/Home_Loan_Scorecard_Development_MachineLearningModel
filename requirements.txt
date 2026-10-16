@@ -12,3 +12,4 @@ streamlit
 flask
 gunicorn
 requests
+python-dotenv
